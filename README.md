@@ -1,6 +1,6 @@
 # Multicall.js <img width="100" align="right" alt="Multicall" src="https://user-images.githubusercontent.com/304108/55666937-320cb180-5888-11e9-907b-48ba66150523.png" />
 
-[![npm version](https://img.shields.io/npm/v/@makerdao/multicall.svg?style=flat-square)](https://www.npmjs.com/package/@makerdao/multicall)
+[![npm version](https://img.shields.io/npm/v/@mcn-ventures/multicall.svg?style=flat-square)](https://www.npmjs.com/package/@mcn-ventures/multicall)
 
 **Multicall.js** is a lightweight JavaScript library for interacting with the [multicall](https://github.com/makerdao/multicall) smart contract.
 
@@ -18,13 +18,13 @@ Multicall allows multiple smart contract constant function calls to be grouped i
 ## Installation
 
 ```bash
-yarn add @makerdao/multicall
+yarn add @mcn-ventures/multicall
 ```
 
 ## Usage
 
 ```javascript
-import { createWatcher } from '@makerdao/multicall';
+import { createWatcher } from '@mcn-ventures/multicall';
 
 // Contract addresses used in this example
 const MKR_TOKEN = '0xaaf64bfcc32d0f15873a02163e7e500671a4ffcd';
@@ -39,27 +39,29 @@ const watcher = createWatcher(
   [
     {
       target: MKR_TOKEN,
-      call: ['balanceOf(address)(uint256)', MKR_WHALE],
-      returns: [['BALANCE_OF_MKR_WHALE', val => val / 10 ** 18]]
-    }
+      method: 'balanceOf(address)',
+      args: [[MKR_WHALE, 'address']],
+      returns: [['BALANCE_OF_MKR_WHALE', (val) => val / 10 ** 18]],
+      returnTypes: ['uint256'],
+    },
   ],
   config
 );
 
 // Subscribe to state updates
-watcher.subscribe(update => {
-console.log(`Update: ${update.type} = ${update.value}`);
+watcher.subscribe((update) => {
+  console.log(`Update: ${update.type} = ${update.value}`);
 });
 
 // Subscribe to batched state updates
-watcher.batch().subscribe(updates => {
+watcher.batch().subscribe((updates) => {
   // Handle batched updates here
   // Updates are returned as { type, value } objects, e.g:
   // { type: 'BALANCE_OF_MKR_WHALE', value: 70000 }
 });
 
 // Subscribe to new block number updates
-watcher.onNewBlock(blockNumber => {
+watcher.onNewBlock((blockNumber) => {
   console.log('New block:', blockNumber);
 });
 
@@ -71,21 +73,28 @@ watcher.start();
 // The JSON RPC URL and multicall contract address can also be specified in the config:
 const config = {
   rpcUrl: 'https://kovan.infura.io',
-  multicallAddress: '0xc49ab4d7de648a97592ed3d18720e00356b4a806'
+  multicallAddress: '0xc49ab4d7de648a97592ed3d18720e00356b4a806',
+  web3: obj, // web3 object
+  ws: obj, // websocket object
+  wsResponseTimeout: num, // needed for ws
+  id: num, // needed for ws
+  block: num, // block number: defaults to 'latest'
 };
 ```
 
 ```javascript
 // Update the watcher calls using tap()
-const fetchWaiter = watcher.tap(calls => [
+const fetchWaiter = watcher.tap((calls) => [
   // Pass back existing calls...
   ...calls,
   // ...plus new calls
   {
     target: MKR_TOKEN,
-    call: ['balanceOf(address)(uint256)', MKR_FISH],
-    returns: [['BALANCE_OF_MKR_FISH', val => val / 10 ** 18]]
-  }
+    method: 'balanceOf(address)',
+    args: [[MKR_FISH, 'address']],
+    returns: [['BALANCE_OF_MKR_FISH', (val) => val / 10 ** 18]],
+    returnTypes: ['uint256'],
+  },
 ]);
 // This promise resolves when the first fetch completes
 fetchWaiter.then(() => {
@@ -101,50 +110,49 @@ watcher.recreate(
     {
       target: MKR_TOKEN,
       call: ['balanceOf(address)(uint256)', MKR_WHALE],
-      returns: [['BALANCE_OF_MKR_WHALE', val => val / 10 ** 18]]
-    }
+      returns: [['BALANCE_OF_MKR_WHALE', (val) => val / 10 ** 18]],
+    },
   ],
   config
 );
 ```
 
 ## Helper Functions
+
 Special variables and functions (e.g. `addr.balance`, `block.blockhash`, `block.timestamp`) can be accessed by calling their corresponding helper function.
 To call these helper functions simply omit the `target` property (and it will default to multicall's contract address).
+
 ```javascript
 const watcher = createWatcher(
   [
     {
-      call: [
-        'getEthBalance(address)(uint256)', 
-        '0x72776bb917751225d24c07d0663b3780b2ada67c'
-      ],
-      returns: [['ETH_BALANCE', val => val / 10 ** 18]]
+      call: ['getEthBalance(address)(uint256)', '0x72776bb917751225d24c07d0663b3780b2ada67c'],
+      returns: [['ETH_BALANCE', (val) => val / 10 ** 18]],
     },
     {
       call: ['getBlockHash(uint256)(bytes32)', 11482494],
-      returns: [['SPECIFIC_BLOCK_HASH_0xFF4DB']]
+      returns: [['SPECIFIC_BLOCK_HASH_0xFF4DB']],
     },
     {
       call: ['getLastBlockHash()(bytes32)'],
-      returns: [['LAST_BLOCK_HASH']]
+      returns: [['LAST_BLOCK_HASH']],
     },
     {
       call: ['getCurrentBlockTimestamp()(uint256)'],
-      returns: [['CURRENT_BLOCK_TIMESTAMP']]
+      returns: [['CURRENT_BLOCK_TIMESTAMP']],
     },
     {
       call: ['getCurrentBlockDifficulty()(uint256)'],
-      returns: [['CURRENT_BLOCK_DIFFICULTY']]
+      returns: [['CURRENT_BLOCK_DIFFICULTY']],
     },
     {
       call: ['getCurrentBlockGasLimit()(uint256)'],
-      returns: [['CURRENT_BLOCK_GASLIMIT']]
+      returns: [['CURRENT_BLOCK_GASLIMIT']],
     },
     {
       call: ['getCurrentBlockCoinbase()(address)'],
-      returns: [['CURRENT_BLOCK_COINBASE']]
-    }
+      returns: [['CURRENT_BLOCK_COINBASE']],
+    },
   ],
   { preset: 'kovan' }
 );
