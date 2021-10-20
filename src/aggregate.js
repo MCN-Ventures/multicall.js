@@ -12,17 +12,22 @@ export function _makeMulticallData(calls) {
       target,
       keccak256(method).substr(0, 10) +
         (args && args.length > 0
-          ? strip0x(encodeParameters(args.map(a => a[1]), args.map(a => a[0])))
-          : '')
-    ])
+          ? strip0x(
+              encodeParameters(
+                args.map((a) => a[1]),
+                args.map((a) => a[0])
+              )
+            )
+          : ''),
+    ]),
   ];
   const calldata = encodeParameters(
     [
       {
         components: [{ type: 'address' }, { type: 'bytes' }],
         name: 'data',
-        type: 'tuple[]'
-      }
+        type: 'tuple[]',
+      },
     ],
     values
   );
@@ -33,42 +38,55 @@ const makeMulticallData = memoize(_makeMulticallData, (...args) => JSON.stringif
 
 export default async function aggregate(calls, config) {
   calls = Array.isArray(calls) ? calls : [calls];
+  let keyToArgMap;
 
-  const keyToArgMap = calls.reduce((acc, { call, returns }) => {
-    const [, ...args] = call;
-    if (args.length > 0) {
-      for (let returnMeta of returns) {
-        const [key] = returnMeta;
-        acc[key] = args;
+  if (calls.every((call) => call.hasOwnProperty('method'))) {
+    keyToArgMap = calls.reduce((acc, { args, returns }) => {
+      if (args.length > 0) {
+        for (let returnMeta of returns) {
+          const [key] = returnMeta;
+          acc[key] = args;
+        }
       }
-    }
-    return acc;
-  }, {});
+      return acc;
+    }, {});
+  } else {
+    keyToArgMap = calls.reduce((acc, { call, returns }) => {
+      const [, ...args] = call;
+      if (args.length > 0) {
+        for (let returnMeta of returns) {
+          const [key] = returnMeta;
+          acc[key] = args;
+        }
+      }
+      return acc;
+    }, {});
 
-  calls = calls.map(({ call, target, returns }) => {
-    if (!target) target = config.multicallAddress;
-    const [method, ...argValues] = call;
-    const [argTypesString, returnTypesString] = method
-      .match(INSIDE_EVERY_PARENTHESES)
-      .map(match => match.slice(1, -1));
-    const argTypes = argTypesString.split(',').filter(e => !!e);
-    invariant(
-      argTypes.length === argValues.length,
-      `Every method argument must have exactly one type.
-          Comparing argument types ${JSON.stringify(argTypes)}
-          to argument values ${JSON.stringify(argValues)}.
-        `
-    );
-    const args = argValues.map((argValue, idx) => [argValue, argTypes[idx]]);
-    const returnTypes = !!returnTypesString ? returnTypesString.split(',') : [];
-    return {
-      method: method.match(FIRST_CLOSING_PARENTHESES)[0],
-      args,
-      returnTypes,
-      target,
-      returns
-    };
-  });
+    calls = calls.map(({ call, target, returns }) => {
+      if (!target) target = config.multicallAddress;
+      const [method, ...argValues] = call;
+      const [argTypesString, returnTypesString] = method
+        .match(INSIDE_EVERY_PARENTHESES)
+        .map((match) => match.slice(1, -1));
+      const argTypes = argTypesString.split(',').filter((e) => !!e);
+      invariant(
+        argTypes.length === argValues.length,
+        `Every method argument must have exactly one type.
+            Comparing argument types ${JSON.stringify(argTypes)}
+            to argument values ${JSON.stringify(argValues)}.
+          `
+      );
+      const args = argValues.map((argValue, idx) => [argValue, argTypes[idx]]);
+      const returnTypes = !!returnTypesString ? returnTypesString.split(',') : [];
+      return {
+        method: method.match(FIRST_CLOSING_PARENTHESES)[0],
+        args,
+        returnTypes,
+        target,
+        returns,
+      };
+    });
+  }
 
   const callDataBytes = makeMulticallData(calls, false);
   const outerResults = await ethCall(callDataBytes, config);
