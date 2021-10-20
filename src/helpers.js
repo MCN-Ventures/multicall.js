@@ -97,7 +97,7 @@ export async function ethCall(rawData, { id, web3, rpcUrl, block, multicallAddre
     return web3.eth.call({
       to: multicallAddress,
       data: abiEncodedData
-    });
+    }, block || 'latest');
   } else {
     log('Sending via XHR fetch');
     const rawResponse = await fetch(rpcUrl, {
