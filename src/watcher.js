@@ -87,12 +87,12 @@ export default function createWatcher(model, config) {
         }
       };
       state.ws.onclose = err => {
-        log('WebSocket closed: %s', JSON.stringify(err));
+        log('WebSocket closed: %s', err);
         log(`Reconnecting in ${state.config.wsReconnectTimeout / 1000} seconds.`);
         reconnectWebSocket(state.config.wsReconnectTimeout);
       };
       state.ws.onerror = err => {
-        log('WebSocket error: %s', JSON.stringify(err));
+        log('WebSocket error: %s', err);
         log(`Reconnecting in ${state.config.wsReconnectTimeout / 1000} seconds.`);
         reconnectWebSocket(state.config.wsReconnectTimeout);
       };
